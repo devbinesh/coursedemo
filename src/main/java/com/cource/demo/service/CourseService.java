@@ -18,9 +18,12 @@ import org.springframework.data.mongodb.core.aggregation.MatchOperation;
 import org.springframework.data.mongodb.core.aggregation.SkipOperation;
 import org.springframework.data.mongodb.core.aggregation.UnwindOperation;
 import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import com.cource.demo.dto.CourseDto;
 import com.cource.demo.dto.CourseFilter;
 import com.cource.demo.model.Course; 
 
@@ -53,4 +56,19 @@ public class CourseService {
 		 
 	}
 
+	public void updateCourse(CourseDto request) {
+		
+		Query query = new Query();
+		
+		query.addCriteria(
+				Criteria.where("id").is(request.getStoryTableId())
+				);
+	  
+	    Update update = new Update();
+	    update.set("tableData.$[element]."+request.getUpdateHeader(), request.getUpdateValue())
+	    .filterArray(Criteria.where("element."+request.getSearchHeader()).is(request.getSearchValue()));
+	     
+	     mongoTemplate.updateMulti(query, update, "course");
+		//mongoTemplate.updateMulti(null, null, getClass())
+	}
 }

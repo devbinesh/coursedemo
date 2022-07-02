@@ -30,5 +30,10 @@ public class CourseController {
 		return service.getCourses(filter);
 		
 	}
-
+	@PostMapping("/update")
+	public  ResponseEntity<String> update(@RequestBody CourseDto request) {
+		service.updateCourse(request);
+		return ResponseEntity.ok("");
+		
+	}
 }
