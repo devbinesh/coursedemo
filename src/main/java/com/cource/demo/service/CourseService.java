@@ -4,18 +4,12 @@ package com.cource.demo.service;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Slice;
-import org.springframework.data.domain.Sort.Direction;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.aggregation.AggregationOperation;
 import org.springframework.data.mongodb.core.aggregation.AggregationResults;
-import org.springframework.data.mongodb.core.aggregation.LimitOperation;
-import org.springframework.data.mongodb.core.aggregation.MatchOperation;
-import org.springframework.data.mongodb.core.aggregation.SkipOperation;
 import org.springframework.data.mongodb.core.aggregation.UnwindOperation;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -25,7 +19,9 @@ import org.springframework.util.StringUtils;
 
 import com.cource.demo.dto.CourseDto;
 import com.cource.demo.dto.CourseFilter;
-import com.cource.demo.model.Course; 
+import com.cource.demo.model.Course;
+import com.mongodb.client.result.UpdateResult;
+import com.mongodb.internal.bulk.UpdateRequest; 
 
 @Service
 public class CourseService {
@@ -37,7 +33,7 @@ public class CourseService {
 	public List<Course> getCourses(CourseFilter filter) {
 		 
 		String filterHeader = "tableData."+filter.getSearchHeader();
-		//Slice<Course> courses = repo.searchCourse(filterHeader, filter.getSearchValue(), pageReq);
+		
 		Criteria matchCriteria = new Criteria(filterHeader).is(filter.getSearchValue());
 		List<AggregationOperation> stages = new ArrayList<>();
 		UnwindOperation unwindStage = Aggregation.unwind("$tableData",  "index", false);
@@ -45,7 +41,6 @@ public class CourseService {
 		if(StringUtils.hasText(filter.getSearchHeader()) ) {
 			stages.add( Aggregation.match(matchCriteria));
 		} 
-		 
 		stages.add( Aggregation.skip( (filter.getPageNo()-1) * filter.getLimit()));
 		stages.add( Aggregation.limit(filter.getLimit())); 
 		Aggregation aggregation = Aggregation.newAggregation(stages) ;
@@ -56,19 +51,18 @@ public class CourseService {
 		 
 	}
 
-	public void updateCourse(CourseDto request) {
+	public Long updateCourse(CourseDto request) {
 		
 		Query query = new Query();
-		
-		query.addCriteria(
-				Criteria.where("id").is(request.getStoryTableId())
-				);
-	  
+		ObjectId objID = new ObjectId(request.getStoryTableId()); 
+		query.addCriteria(Criteria.where("_id").is(objID));
 	    Update update = new Update();
 	    update.set("tableData.$[element]."+request.getUpdateHeader(), request.getUpdateValue())
 	    .filterArray(Criteria.where("element."+request.getSearchHeader()).is(request.getSearchValue()));
 	     
-	     mongoTemplate.updateMulti(query, update, "course");
-		//mongoTemplate.updateMulti(null, null, getClass())
+	    UpdateResult updateResult = mongoTemplate.updateMulti(query, update, "course");
+	    return updateResult.getModifiedCount();
+	    
+	    
 	}
 }

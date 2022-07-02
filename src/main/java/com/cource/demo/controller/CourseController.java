@@ -32,8 +32,12 @@ public class CourseController {
 	}
 	@PostMapping("/update")
 	public  ResponseEntity<String> update(@RequestBody CourseDto request) {
-		service.updateCourse(request);
-		return ResponseEntity.ok("");
+		Long updatedCout = service.updateCourse(request);
+		if( updatedCout > 0 ) {
+			return ResponseEntity.ok(updatedCout+" records updated successfully");
+		}else {
+			return ResponseEntity.badRequest().body("Not updated any records");
+		}
 		
 	}
 }
