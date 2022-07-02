@@ -33,14 +33,16 @@ public class CourseService {
 	public List<Course> getCourses(CourseFilter filter) {
 		 
 		String filterHeader = "tableData."+filter.getSearchHeader();
-		
-		Criteria matchCriteria = new Criteria(filterHeader).is(filter.getSearchValue());
+		  
 		List<AggregationOperation> stages = new ArrayList<>();
+		stages.add( Aggregation.match( new Criteria("_id").is(new ObjectId(filter.getStoryTableId()))));
 		UnwindOperation unwindStage = Aggregation.unwind("$tableData",  "index", false);
 		stages.add(unwindStage);
+		
 		if(StringUtils.hasText(filter.getSearchHeader()) ) {
-			stages.add( Aggregation.match(matchCriteria));
+			stages.add( Aggregation.match(new Criteria(filterHeader).is(filter.getSearchValue())));
 		} 
+		
 		stages.add( Aggregation.skip( (filter.getPageNo()-1) * filter.getLimit()));
 		stages.add( Aggregation.limit(filter.getLimit())); 
 		Aggregation aggregation = Aggregation.newAggregation(stages) ;
