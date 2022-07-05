@@ -10,6 +10,9 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.aggregation.AggregationOperation;
 import org.springframework.data.mongodb.core.aggregation.AggregationResults;
+import org.springframework.data.mongodb.core.aggregation.ArithmeticOperators;
+import org.springframework.data.mongodb.core.aggregation.ConvertOperators;
+import org.springframework.data.mongodb.core.aggregation.FacetOperation;
 import org.springframework.data.mongodb.core.aggregation.UnwindOperation;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -22,6 +25,7 @@ import com.cource.demo.dto.CourseFilter;
 import com.cource.demo.model.Course;
 import com.mongodb.client.result.UpdateResult;
 import com.mongodb.internal.bulk.UpdateRequest; 
+import static org.springframework.data.mongodb.core.aggregation.Aggregation.*;
 
 @Service
 public class CourseService {
@@ -30,7 +34,7 @@ public class CourseService {
 	@Autowired
 	MongoTemplate mongoTemplate;
 	
-	public List<Course> getCourses(CourseFilter filter) {
+	public Object getCourses(CourseFilter filter) {
 		 
 		String filterHeader = "tableData."+filter.getSearchHeader();
 		  
@@ -39,17 +43,42 @@ public class CourseService {
 		UnwindOperation unwindStage = Aggregation.unwind("$tableData",  "index", false);
 		stages.add(unwindStage);
 		
+		 stages.add(Aggregation.replaceRoot("$tableData"));
+		
 		if(StringUtils.hasText(filter.getSearchHeader()) ) {
 			stages.add( Aggregation.match(new Criteria(filterHeader).is(filter.getSearchValue())));
 		} 
 		
-		stages.add( Aggregation.skip( (filter.getPageNo()-1) * filter.getLimit()));
-		stages.add( Aggregation.limit(filter.getLimit())); 
-		Aggregation aggregation = Aggregation.newAggregation(stages) ;
-		AggregationResults<Course> output  = mongoTemplate
-				.aggregate(aggregation,"course", Course.class);
+		Long skip = (filter.getPageNo()-1) * filter.getLimit();
+		ArithmeticOperators.Ceil arOp =	ArithmeticOperators.Ceil
+				.ceilValueOf( ArithmeticOperators.Divide.valueOf("total").divideBy(filter.getLimit())) ;
 		
-		return output.getMappedResults();
+		
+		AggregationOperation ops = addFields().addField("page")
+		.withValue(filter.getPageNo())
+		.addField("limit")
+		.withValue(filter.getLimit())
+		.addField("pages").withValueOf(ConvertOperators.valueOf(arOp).convertToLong())
+		
+		.build();
+	 
+		FacetOperation facet = facet().and(
+				Aggregation.count().as("total"),
+				ops
+				 
+				)
+				.as("pageable")
+				.and(Aggregation.skip(skip ),
+						Aggregation.limit(filter.getLimit())	)
+				.as("tableData");
+		stages.add( facet);
+		stages.add( unwind("pageable"));
+	 
+		Aggregation aggregation = Aggregation.newAggregation(stages) ;
+		AggregationResults<Object> output  = mongoTemplate
+				.aggregate(aggregation,"course", Object.class);
+		
+		return output.getUniqueMappedResult();
 		 
 	}
 
