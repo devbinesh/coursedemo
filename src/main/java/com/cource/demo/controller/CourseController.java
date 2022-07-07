@@ -38,12 +38,14 @@ public class CourseController {
 	}
 	@PostMapping("/update")
 	public  ResponseEntity<String> update(@RequestBody @Valid CourseDto request) {
-		Long updatedCout = service.updateCourse(request);
-		if( updatedCout > 0 ) {
-			return ResponseEntity.ok(updatedCout+" records updated successfully");
-		}else {
-			return ResponseEntity.badRequest().body("Not updated any records");
-		}
+		 boolean updated = service.updateCourse(request);
+		 if(updated) {
+			 return ResponseEntity.ok(" records updated successfully");
+		 }else {
+			 return ResponseEntity.ok("Not able to update table header. header does not exist");
+		 }
+		
+		 
 		
 	}
 }

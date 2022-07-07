@@ -2,9 +2,13 @@ package com.cource.demo.service;
 
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.bson.types.ObjectId;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
@@ -24,19 +28,19 @@ import com.cource.demo.dto.CourseDto;
 import com.cource.demo.dto.CourseFilter;
 import com.cource.demo.model.Course;
 import com.mongodb.client.result.UpdateResult;
-import com.mongodb.internal.bulk.UpdateRequest; 
 import static org.springframework.data.mongodb.core.aggregation.Aggregation.*;
 
 @Service
 public class CourseService {
 	 
+	Logger log = LoggerFactory.getLogger(getClass());
 	
 	@Autowired
 	MongoTemplate mongoTemplate;
 	
 	public Object getCourses(CourseFilter filter) {
 		 
-		String filterHeader = "tableData."+filter.getSearchHeader();
+		String filterHeader = filter.getSearchHeader();
 		  
 		List<AggregationOperation> stages = new ArrayList<>();
 		stages.add( Aggregation.match( new Criteria("_id").is(new ObjectId(filter.getStoryTableId()))));
@@ -64,9 +68,7 @@ public class CourseService {
 	 
 		FacetOperation facet = facet().and(
 				Aggregation.count().as("total"),
-				ops
-				 
-				)
+				ops)
 				.as("pageable")
 				.and(Aggregation.skip(skip ),
 						Aggregation.limit(filter.getLimit())	)
@@ -82,18 +84,54 @@ public class CourseService {
 		 
 	}
 
-	public Long updateCourse(CourseDto request) {
-		
-		Query query = new Query();
-		ObjectId objID = new ObjectId(request.getStoryTableId()); 
-		query.addCriteria(Criteria.where("_id").is(objID));
-	    Update update = new Update();
-	    update.set("tableData.$[element]."+request.getUpdateHeader(), request.getUpdateValue())
-	    .filterArray(Criteria.where("element."+request.getSearchHeader()).is(request.getSearchValue()));
-	     
-	    UpdateResult updateResult = mongoTemplate.updateMulti(query, update, "course");
-	    return updateResult.getModifiedCount();
-	    
+	public boolean updateCourse(CourseDto request) {
+		 
+		if(StringUtils.hasText(request.getSearchHeader())) {
+			
+			Query query = new Query();
+			ObjectId objID = new ObjectId(request.getStoryTableId()); 
+			query.addCriteria(Criteria.where("_id").is(objID));
+		    Update update = new Update();
+		    update.set("tableData.$[element]."+request.getUpdateHeader(), request.getUpdateValue())
+		    .filterArray(Criteria.where("element."+request.getSearchHeader()).is(request.getSearchValue()));
+		     
+		    mongoTemplate.updateMulti(query, update, "course");
+		    return true;
+		    
+		} else {
+			 
+			Query query = new Query();
+			ObjectId objID = new ObjectId(request.getStoryTableId()); 
+			query.addCriteria(Criteria.where("_id").is(objID));
+			Course course = mongoTemplate.findById(objID, Course.class, "course");
+			List<String> headers = course.getTableHead(); 
+			if(headers.contains(request.getUpdateHeader())) {
+				headers.add(headers.indexOf(request.getUpdateHeader()), request.getUpdateValue());
+				headers.remove(request.getUpdateHeader());
+				 
+				List<Map<String, Object>> tableData = course.getTableData();
+				tableData.forEach(t -> {
+
+					 Object currentValue = t.get(request.getUpdateHeader());
+					 
+					//update the value
+					 t.put(request.getUpdateValue(), currentValue);
+					 //remove old key
+					 t.remove(request.getUpdateHeader());
+					 
+				});
+				Update updates = new Update();
+				updates.set("tableHead", headers);
+				updates.set("tableData", tableData);
+				mongoTemplate.updateFirst(query, updates, "course");
+				 return true;
+			}else {
+				 return false;
+			}
+			
+			  
+			
+		} 
 	    
 	}
 }

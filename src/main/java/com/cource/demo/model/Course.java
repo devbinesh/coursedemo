@@ -26,9 +26,8 @@ public class Course {
     
     private List<String> tableHead;
     
-    private Object tableData;
-    
-    private Integer index;
+    private List<Map<String, Object>> tableData;
+     
 
 	public String getId() {
 		return id;
@@ -46,7 +45,7 @@ public class Course {
 		this.courseId = courseId;
 	}
 
-	public List<String> getTableHead() {
+	public List<String>  getTableHead() {
 		return tableHead;
 	}
 
@@ -54,21 +53,13 @@ public class Course {
 		this.tableHead = tableHead;
 	}
 
-	public Object getTableData() {
+	public List<Map<String, Object>> getTableData() {
 		return tableData;
 	}
 
-	public void setTableData(Object tableData) {
+	public void setTableData(List<Map<String, Object>> tableData) {
 		this.tableData = tableData;
 	}
-
-	public Integer getIndex() {
-		return index;
-	}
-
-	public void setIndex(Integer index) {
-		this.index = index;
-	} 
-    
+ 
     
 }
